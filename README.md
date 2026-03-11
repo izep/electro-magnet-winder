@@ -36,11 +36,20 @@ The **encoder button** advances through each setting. Rotate the encoder to chan
 
 | Display | State | Encoder action |
 |---------|-------|---------------|
-| `0100`  | Target turns | Rotate to set turn count (±10, range 10–9990) |
+| `0001`  | Layers | Rotate to set number of winding layers (±1, range 1–99) |
 | `L 20`  | Spool length | Rotate to set magnet/coil length in mm (±1 mm, range 1–999) |
 | `A 28`  | Wire gauge | Rotate to cycle AWG presets: 22, 26, 28, 30, 32, 36, 40 |
 | `go`    | Ready | Press button to start winding |
-| `0000`  | **Winding** | Display counts up to target turns — press button to stop early |
+| `0000`  | **Winding** | Display counts turns up to target — press button to stop early |
+
+Total turns are computed automatically when you press start:
+
+```
+turns_per_layer = floor(spool_length_mm / wire_diameter_mm)
+total_turns     = layers × turns_per_layer
+```
+
+For example: 3 layers, 20 mm spool, 28 AWG (0.321 mm) → 62 turns/layer → **186 total turns**.
 
 When winding completes (target reached) or is stopped, the machine returns to the turn count setting screen.
 

@@ -10,14 +10,18 @@
  *   - Encoder:             KY-040 on GP20–GP22
  *
  * Menu flow (button advances each step):
- *   TURNS → LENGTH → GAUGE → START  →  WINDING
- *     ↑__________________________________|  (stop returns here)
+ *   LAYERS → LENGTH → GAUGE → START  →  WINDING
+ *      ↑__________________________________|  (stop returns here)
  *
- *   TURNS  – encoder sets target turn count (±10, range 10–9990)
+ *   LAYERS – encoder sets number of winding layers (±1, range 1–99)
  *   LENGTH – encoder sets magnet/spool length in mm (±1 mm, range 1–999)
  *   GAUGE  – encoder cycles AWG presets (22–40 AWG)
  *   START  – display shows "go", button begins winding
  *   WINDING– display shows live turn count; button stops
+ *
+ * Total turns are computed automatically:
+ *   turns_per_layer = floor(spool_length_mm / wire_diameter_mm)
+ *   total_turns     = layers × turns_per_layer
  *
  * Guide motor calibration:
  *   2 revolutions of Motor 2 = 3.5 mm of linear travel
@@ -91,16 +95,18 @@ uint8_t displayBuf[4] = {SEG_BLANK, SEG_BLANK, SEG_BLANK, SEG_BLANK};
 
 // ── State machine ────────────────────────────────────────────────────────────
 
-enum State { MENU_TURNS, MENU_LENGTH, MENU_GAUGE, MENU_START, WINDING };
-State state = MENU_TURNS;
+enum State { MENU_LAYERS, MENU_LENGTH, MENU_GAUGE, MENU_START, WINDING };
+State state = MENU_LAYERS;
 
 // ── User-configurable settings ───────────────────────────────────────────────
 
-int targetTurns   = 100;   // turns to wind
-int spoolLengthMM = 20;    // magnet/coil length in mm
-int gaugeIndex    = 2;     // default: 28 AWG
+int targetLayers  = 1;    // number of winding layers
+int spoolLengthMM = 20;   // magnet/coil length in mm
+int gaugeIndex    = 2;    // default: 28 AWG
 
 // ── Winding state ────────────────────────────────────────────────────────────
+
+int           computedTurns = 0;  // calculated at winding start
 
 long          totalStepsM1 = 0;
 long          totalStepsM2 = 0;
@@ -184,8 +190,8 @@ void motorStartupTest() {
 void updateDisplay() {
   switch (state) {
 
-    case MENU_TURNS:
-      showNumber(targetTurns);
+    case MENU_LAYERS:
+      showNumber(targetLayers);
       break;
 
     case MENU_LENGTH: {
@@ -228,8 +234,8 @@ void handleEncoder() {
   if (delta == 0) return;
 
   switch (state) {
-    case MENU_TURNS:
-      targetTurns = constrain(targetTurns + delta * 10, 10, 9990);
+    case MENU_LAYERS:
+      targetLayers = constrain(targetLayers + delta, 1, 99);
       break;
     case MENU_LENGTH:
       spoolLengthMM = constrain(spoolLengthMM + delta, 1, 999);
@@ -252,20 +258,25 @@ void handleButton() {
   delay(20);
 
   switch (state) {
-    case MENU_TURNS:   state = MENU_LENGTH; break;
+    case MENU_LAYERS:  state = MENU_LENGTH; break;
     case MENU_LENGTH:  state = MENU_GAUGE;  break;
     case MENU_GAUGE:   state = MENU_START;  break;
 
-    case MENU_START:
+    case MENU_START: {
+      // Compute total turns from layers × turns-per-layer
+      float wireDiam = GAUGES[gaugeIndex].diameter_mm;
+      int turnsPerLayer = max(1, (int)((float)spoolLengthMM / wireDiam));
+      computedTurns = targetLayers * turnsPerLayer;
       state        = WINDING;
       currentTurns = 0;
       totalStepsM1 = 0;
       totalStepsM2 = 0;
       lastStepTime = millis();
       break;
+    }
 
     case WINDING:
-      state = MENU_TURNS;
+      state = MENU_LAYERS;
       releaseMotors();
       break;
   }
@@ -274,8 +285,8 @@ void handleButton() {
 // ── Winding loop ─────────────────────────────────────────────────────────────
 
 void handleWinding() {
-  if (currentTurns >= targetTurns) {
-    state = MENU_TURNS;
+  if (currentTurns >= computedTurns) {
+    state = MENU_LAYERS;
     releaseMotors();
     return;
   }
