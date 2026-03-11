@@ -88,6 +88,9 @@ const uint8_t SEG_L     = 0x38;  // f, e, d          (L)
 const uint8_t SEG_A_UP  = 0x77;  // a, b, c, e, f, g (A)
 const uint8_t SEG_G_LO  = 0x6F;  // a, b, c, d, f, g (g) — same pattern as 9
 const uint8_t SEG_O_LO  = 0x5C;  // c, d, e, g       (o)
+const uint8_t SEG_D_LO  = 0x5E;  // b, c, d, e, g    (d)
+const uint8_t SEG_N_LO  = 0x54;  // c, e, g          (n)
+const uint8_t SEG_E_LO  = 0x79;  // a, d, e, f, g    (e)
 
 // ── Display buffer ───────────────────────────────────────────────────────────
 
@@ -217,9 +220,16 @@ void updateDisplay() {
       displayBuf[3] = SEG_BLANK;
       break;
 
-    case WINDING:
-      showNumber(currentTurns);
+    case WINDING: {
+      int pct = (computedTurns > 0)
+                ? constrain((int)((float)currentTurns * 100.0f / computedTurns), 0, 99)
+                : 0;
+      displayBuf[0] = SEG_BLANK;
+      displayBuf[1] = SEG_BLANK;
+      displayBuf[2] = DIGIT_PAT[pct / 10];
+      displayBuf[3] = DIGIT_PAT[pct % 10];
       break;
+    }
   }
 }
 
@@ -286,8 +296,14 @@ void handleButton() {
 
 void handleWinding() {
   if (currentTurns >= computedTurns) {
-    state = MENU_LAYERS;
     releaseMotors();
+    displayBuf[0] = SEG_D_LO;
+    displayBuf[1] = SEG_O_LO;
+    displayBuf[2] = SEG_N_LO;
+    displayBuf[3] = SEG_E_LO;
+    unsigned long t = millis();
+    while (millis() - t < 2000) refreshDisplay();  // hold "done" for 2 s
+    state = MENU_LAYERS;
     return;
   }
 
