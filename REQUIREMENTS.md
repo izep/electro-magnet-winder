@@ -30,6 +30,6 @@ A DIY machine for winding precision electro-magnets and coils, powered by an RP2
 ## Roadmap
 - [x] Initial wiring and pinout defined
 - [x] Basic motor/display test sketch
-- [ ] Implement Traverse/Winding sync logic
+- [x] Implement Traverse/Winding sync logic
 - [ ] Add menu system for target turn setting
 - [ ] 3D Print and assemble enclosure
