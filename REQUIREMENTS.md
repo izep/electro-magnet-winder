@@ -14,13 +14,16 @@ A DIY machine for winding precision electro-magnets and coils, powered by an RP2
   - 4-Digit 7-Segment Display (SH5461AS, common cathode) for turn count/status.
 
 ## Functional Requirements
-1. **Manual Mode**: Use rotary encoder to manually step the main winding motor.
-2. **Automatic Winding**: Set a target number of turns and start/stop winding.
-3. **Dual Motor Sync**: 
-   - Motor 1: Winding (Rotation)
-   - Motor 2: Wire Guide (Linear traverse to ensure even layers)
-4. **Display**: Real-time turn count display.
-5. **Memory**: Persistence of turn count and settings (optional, for later).
+
+1. **Menu-driven configuration**: Set target turns, spool/magnet length, and wire gauge before winding.
+2. **Automatic Winding**: Press start; machine winds to target turn count and stops automatically.
+3. **Dual Motor Sync**:
+   - Motor 1: Winding (rotation)
+   - Motor 2: Wire guide (linear traverse, ping-pong across spool length)
+4. **Display**: Real-time turn count while winding; settings shown in menu.
+5. **Wire gauge presets**: 22, 26, 28, 30, 32, 36, 40 AWG — selectable at runtime.
+6. **Startup test**: Brief motor movement on power-up to verify coil wiring.
+7. **Memory**: Persistence of settings (deferred to future version).
 
 ## Technical Stack
 - **Firmware**: C++/Arduino (Earle Philhower RP2040 core)
@@ -28,8 +31,12 @@ A DIY machine for winding precision electro-magnets and coils, powered by an RP2
 - **Documentation**: Markdown-based wiring and assembly guides
 
 ## Roadmap
+
 - [x] Initial wiring and pinout defined
 - [x] Basic motor/display test sketch
-- [x] Implement Traverse/Winding sync logic
-- [ ] Add menu system for target turn setting
-- [ ] 3D Print and assemble enclosure
+- [x] Implement traverse/winding sync logic (ping-pong guide)
+- [x] Menu system: target turns, spool length, wire gauge, start/stop
+- [x] Wire gauge presets (22–40 AWG, selectable at runtime)
+- [x] Startup motor test sequence
+- [ ] 3D print and assemble enclosure
+- [ ] Persistence of settings (deferred)
