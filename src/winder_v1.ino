@@ -1,5 +1,3 @@
-#include <Arduino.h>
-
 /**
  * Electro-Magnet Winder Firmware v0.2
  * 
@@ -14,8 +12,10 @@
  * Features:
  * - Real-time turn count display
  * - Manual stepping with rotary encoder
- * - Synchronized Traverse/Winding logic
+ * - Synchronized Winding and Traverse (Linear Guide)
  */
+
+#include <Arduino.h>
 
 // Motor 1: Winding (Rotation)
 const int M1[4] = {0, 1, 2, 3};
@@ -37,16 +37,6 @@ const int DIG[4] = {16, 17, 18, 19};
 // Half-step sequence for 28BYJ-48 (IN1 is LSB)
 const uint8_t HALF_STEP[8] = {0x1, 0x3, 0x2, 0x6, 0x4, 0xC, 0x8, 0x9};
 
-// Configuration Constants
-const int STEPS_PER_REV = 4096; // 64 steps * 64 gear ratio for 28BYJ-48 half-stepping
-const float WIRE_DIAMETER_MM = 0.2; // Example for 32 AWG
-const float TRAVERSE_MM_PER_REV = 0.5; // Lead screw pitch (example: 0.5mm)
-const int TRAVERSE_STEPS_PER_MM = 200; // Example: 200 steps per mm for M3/M4 screw
-
-// Calculated Traverse steps per Winding step
-// Ratio = (Traverse_steps_per_mm * Wire_dia_mm) / Steps_per_rev
-const float TRAVERSE_RATIO = (float)(TRAVERSE_STEPS_PER_MM * WIRE_DIAMETER_MM) / STEPS_PER_REV;
-
 // 7-segment digit patterns (Common Cathode, Segments A-G, DP=bit 7)
 // Bit 0 = A, 1 = B, 2 = C, 3 = D, 4 = E, 5 = F, 6 = G, 7 = DP
 const uint8_t DIGIT_PAT[10] = {
@@ -62,13 +52,23 @@ const uint8_t DIGIT_PAT[10] = {
     0b01101111, // 9
 };
 
+// Configurable constants
+const int STEPS_PER_REV = 4096; // 64:1 gear ratio * 64 steps (approx for 28BYJ-48 half-step)
+const float TRAVERSE_PITCH_MM = 1.0; // Linear travel per revolution of Traverse motor
+const float WIRE_DIAMETER_MM = 0.25; // Typical 30 AWG wire diameter
+
 // State Variables
-volatile int windingPosition = 0; // Total half-steps
-volatile float traversePosition = 0; // Target traverse position in steps
-int lastWindingPos = 0;
+volatile int currentEncoderPos = 0;
+int lastStepPos = 0;
 int stepIdx1 = 0;
 int stepIdx2 = 0;
 bool motorsEngaged = false;
+uint32_t lastMoveTime = 0;
+
+// Synchronization logic: Traverse motor moves based on Winding motor position
+// steps_traverse = (steps_winding / STEPS_PER_REV) * (WIRE_DIAMETER_MM / TRAVERSE_PITCH_MM) * STEPS_PER_REV
+// Simplified: steps_traverse = steps_winding * (WIRE_DIAMETER_MM / TRAVERSE_PITCH_MM)
+const float SYNC_RATIO = WIRE_DIAMETER_MM / TRAVERSE_PITCH_MM;
 
 // Function Prototypes
 void writeMotor(const int pins[4], uint8_t nibble);
@@ -107,48 +107,50 @@ void setup() {
 }
 
 void loop() {
-    // Refresh the 4-digit display (cycles one digit per call)
-    refreshDisplay(windingPosition / STEPS_PER_REV);
+    // Display shows turn count (steps / steps per rev)
+    int turns = currentEncoderPos / 20; // Scale encoder clicks to turns for display
+    refreshDisplay(turns);
 
-    // Check for encoder movement (manual stepping)
-    if (windingPosition != lastWindingPos) {
-        int dir = (windingPosition > lastWindingPos) ? 1 : -1;
+    // Check for movement (manual stepping or auto-winding logic)
+    if (currentEncoderPos != lastStepPos) {
+        int dir = (currentEncoderPos > lastStepPos) ? 1 : -1;
         
-        // 1. Step Winding Motor
+        // Move Winding Motor
         stepMotor1(dir);
         
-        // 2. Calculate and Step Traverse Motor
-        float targetTraverse = windingPosition * TRAVERSE_RATIO;
-        int traverseDiff = (int)targetTraverse - (int)traversePosition;
+        // Calculate and move Traverse Motor to maintain sync
+        // Using currentEncoderPos as a proxy for master step position
+        int expectedTraverseSteps = (int)(currentEncoderPos * SYNC_RATIO);
+        static int actualTraverseSteps = 0;
         
-        if (traverseDiff != 0) {
-            stepMotor2(traverseDiff > 0 ? 1 : -1);
-            traversePosition += (traverseDiff > 0 ? 1 : -1);
+        while (actualTraverseSteps < expectedTraverseSteps) {
+            stepMotor2(1);
+            actualTraverseSteps++;
+        }
+        while (actualTraverseSteps > expectedTraverseSteps) {
+            stepMotor2(-1);
+            actualTraverseSteps--;
         }
 
-        lastWindingPos = windingPosition;
+        lastStepPos = currentEncoderPos;
+        lastMoveTime = millis();
         motorsEngaged = true;
         delay(2); // Minimum delay between steps for 28BYJ-48
     }
 
     // Button Reset: Active LOW
     if (digitalRead(ENC_SW) == LOW) {
-        windingPosition = 0;
-        lastWindingPos = 0;
-        traversePosition = 0;
+        currentEncoderPos = 0;
+        lastStepPos = 0;
         releaseMotors();
         motorsEngaged = false;
         delay(300); // Debounce
     }
     
     // Release motors after inactivity to prevent overheating
-    static uint32_t lastMoveTime = 0;
     if (motorsEngaged && (millis() - lastMoveTime > 5000)) {
         releaseMotors();
         motorsEngaged = false;
-    }
-    if (windingPosition != lastWindingPos) {
-        lastMoveTime = millis();
     }
 }
 
@@ -162,7 +164,7 @@ void writeMotor(const int pins[4], uint8_t nibble) {
 }
 
 /**
- * Take one step with Motor 1 in the specified direction.
+ * Take one step with Motor 1 (Winding) in the specified direction.
  */
 void stepMotor1(int dir) {
     stepIdx1 = (stepIdx1 + dir + 8) % 8;
@@ -170,7 +172,7 @@ void stepMotor1(int dir) {
 }
 
 /**
- * Take one step with Motor 2 in the specified direction.
+ * Take one step with Motor 2 (Traverse) in the specified direction.
  */
 void stepMotor2(int dir) {
     stepIdx2 = (stepIdx2 + dir + 8) % 8;
@@ -191,6 +193,12 @@ void releaseMotors() {
  */
 void refreshDisplay(int value) {
     static uint8_t currentDigit = 0;
+    static uint32_t lastRefresh = 0;
+    
+    // Throttle refresh to prevent flickering and allow multiplexing
+    if (millis() - lastRefresh < 2) return;
+    lastRefresh = millis();
+
     int absValue = abs(value) % 10000;
 
     int digits[4] = {
@@ -222,12 +230,16 @@ void refreshDisplay(int value) {
  * Interrupt handler for rotary encoder rotation.
  */
 void onEncoderCLK() {
+    static uint32_t lastInterrupt = 0;
+    if (millis() - lastInterrupt < 1) return; // Simple debounce
+    
     bool clk = digitalRead(ENC_CLK);
     bool dt  = digitalRead(ENC_DT);
     
     if (clk != dt) {
-        windingPosition++;
+        currentEncoderPos++;
     } else {
-        windingPosition--;
+        currentEncoderPos--;
     }
+    lastInterrupt = millis();
 }
