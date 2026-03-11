@@ -29,6 +29,15 @@
  */
 
 #include <Arduino.h>
+#include <EEPROM.h>
+
+struct Settings {
+  uint32_t magic;
+  int layers;
+  int lengthMM;
+  int gaugeIdx;
+};
+const uint32_t MAGIC_VAL = 0xEE112233;
 
 // ── Pin assignments ──────────────────────────────────────────────────────────
 
@@ -270,7 +279,14 @@ void handleButton() {
   switch (state) {
     case MENU_LAYERS:  state = MENU_LENGTH; break;
     case MENU_LENGTH:  state = MENU_GAUGE;  break;
-    case MENU_GAUGE:   state = MENU_START;  break;
+    case MENU_GAUGE:   
+      {
+        Settings s = {MAGIC_VAL, targetLayers, spoolLengthMM, gaugeIndex};
+        EEPROM.put(0, s);
+        EEPROM.commit();
+      }
+      state = MENU_START;  
+      break;
 
     case MENU_START: {
       // Compute total turns from layers × turns-per-layer
@@ -333,6 +349,15 @@ void handleWinding() {
 // ── Arduino entry points ─────────────────────────────────────────────────────
 
 void setup() {
+  EEPROM.begin(512);
+  Settings s;
+  EEPROM.get(0, s);
+  if (s.magic == MAGIC_VAL) {
+    targetLayers = constrain(s.layers, 1, 99);
+    spoolLengthMM = constrain(s.lengthMM, 1, 999);
+    gaugeIndex = constrain(s.gaugeIdx, 0, NUM_GAUGES - 1);
+  }
+
   for (int i = 0; i < 4; i++) { pinMode(M1[i],  OUTPUT); digitalWrite(M1[i],  LOW);  }
   for (int i = 0; i < 4; i++) { pinMode(M2[i],  OUTPUT); digitalWrite(M2[i],  LOW);  }
   for (int i = 0; i < 8; i++) { pinMode(SEG[i], OUTPUT); digitalWrite(SEG[i], LOW);  }
