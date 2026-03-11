@@ -32,9 +32,17 @@ const uint8_t DIGIT_PAT[10] = {
   0b01101111, // 9
 };
 
+// Machine configuration
+const int STEPS_PER_REV = 2048;
+const float WIRE_DIAMETER_MM = 0.2; // 32 AWG approx
+const float SPOOL_WIDTH_MM = 20.0;
+const int GUIDE_STEPS_PER_MM = 100; // Placeholder: steps per mm for linear guide
+
 // State variables
 volatile int targetTurns = 100;
 int currentTurns = 0;
+long totalStepsM1 = 0;
+long totalStepsM2 = 0;
 bool isWinding = false;
 int stepIdx1 = 0;
 int stepIdx2 = 0;
@@ -49,11 +57,13 @@ void writeMotor(const int pins[4], uint8_t nibble) {
 void stepMotor1(int dir) {
   stepIdx1 = (stepIdx1 + dir + 8) % 8;
   writeMotor(M1, HALF_STEP[stepIdx1]);
+  totalStepsM1 += dir;
 }
 
 void stepMotor2(int dir) {
   stepIdx2 = (stepIdx2 + dir + 8) % 8;
   writeMotor(M2, HALF_STEP[stepIdx2]);
+  totalStepsM2 += dir;
 }
 
 void refreshDisplay(int n) {
@@ -102,20 +112,35 @@ void loop() {
   if (digitalRead(ENC_SW) == LOW) {
     delay(200); // debounce
     isWinding = !isWinding;
-    if (isWinding) currentTurns = 0;
+    if (isWinding) {
+        currentTurns = 0;
+        totalStepsM1 = 0;
+        totalStepsM2 = 0;
+    }
   }
 
   if (isWinding && currentTurns < targetTurns) {
     if (millis() - lastStepTime >= stepDelay) {
       stepMotor1(1);
-      // Simple linear guide logic could go here
-      // For now, just count steps to turns (2048 steps/turn)
-      static int steps = 0;
-      steps++;
-      if (steps >= 2048) {
-        steps = 0;
-        currentTurns++;
+      
+      // Calculate target guide position in mm
+      float currentPosInRev = (float)totalStepsM1 / STEPS_PER_REV;
+      float targetGuideMM = currentPosInRev * WIRE_DIAMETER_MM;
+      
+      // Ping-pong logic for guide
+      int direction = ((int)(targetGuideMM / SPOOL_WIDTH_MM)) % 2 == 0 ? 1 : -1;
+      float adjustedGuideMM = fmod(targetGuideMM, SPOOL_WIDTH_MM);
+      if (direction == -1) adjustedGuideMM = SPOOL_WIDTH_MM - adjustedGuideMM;
+      
+      long targetStepsM2 = (long)(adjustedGuideMM * GUIDE_STEPS_PER_MM);
+      
+      if (totalStepsM2 < targetStepsM2) stepMotor2(1);
+      else if (totalStepsM2 > targetStepsM2) stepMotor2(-1);
+
+      if (totalStepsM1 % STEPS_PER_REV == 0 && totalStepsM1 > 0) {
+        currentTurns = totalStepsM1 / STEPS_PER_REV;
       }
+      
       lastStepTime = millis();
     }
   } else if (currentTurns >= targetTurns) {
@@ -124,3 +149,4 @@ void loop() {
     writeMotor(M2, 0);
   }
 }
+
