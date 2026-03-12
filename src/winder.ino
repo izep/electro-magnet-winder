@@ -29,6 +29,7 @@
  */
 
 #include <Arduino.h>
+#include <EEPROM.h>
 
 // ── Pin assignments ──────────────────────────────────────────────────────────
 
@@ -269,6 +270,13 @@ void handleButton() {
     case MENU_GAUGE:   state = MENU_START;  break;
 
     case MENU_START: {
+      // Save settings to EEPROM
+      EEPROM.write(0, 0x55);
+      EEPROM.put(1, targetLayers);
+      EEPROM.put(1 + sizeof(int), spoolLengthMM);
+      EEPROM.put(1 + 2 * sizeof(int), gaugeIndex);
+      EEPROM.commit();
+
       // Compute total turns from layers × turns-per-layer
       float wireDiam = GAUGES[gaugeIndex].diameter_mm;
       int turnsPerLayer = max(1, (int)((float)spoolLengthMM / wireDiam));
@@ -338,6 +346,17 @@ void setup() {
   pinMode(ENC_DT,  INPUT_PULLUP);
   pinMode(ENC_SW,  INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(ENC_CLK), onEncoderCLK, FALLING);
+
+  EEPROM.begin(256);
+  if (EEPROM.read(0) == 0x55) {
+    EEPROM.get(1, targetLayers);
+    EEPROM.get(1 + sizeof(int), spoolLengthMM);
+    EEPROM.get(1 + 2 * sizeof(int), gaugeIndex);
+    
+    targetLayers = constrain(targetLayers, 1, 99);
+    spoolLengthMM = constrain(spoolLengthMM, 1, 999);
+    if (gaugeIndex < 0 || gaugeIndex >= NUM_GAUGES) gaugeIndex = 2;
+  }
 
   motorStartupTest();
   updateDisplay();
