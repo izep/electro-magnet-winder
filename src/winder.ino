@@ -57,7 +57,9 @@ const WireGauge GAUGES[] = {
   {28, 0.321f},
   {30, 0.255f},
   {32, 0.202f},
+  {34, 0.160f},
   {36, 0.127f},
+  {38, 0.101f},
   {40, 0.079f},
 };
 const int NUM_GAUGES = (int)(sizeof(GAUGES) / sizeof(GAUGES[0]));
