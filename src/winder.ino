@@ -6,8 +6,17 @@
  * Hardware:
  *   - Motor 1  (winding):  28BYJ-48 + ULN2003 on GP0–GP3
  *   - Motor 2  (traverse): 28BYJ-48 + ULN2003 on GP4–GP7
- *   - Display:             SH5461AS 4-digit 7-seg (common cathode) on GP8–GP19
- *   - Encoder:             KY-040 on GP20–GP22
+ *   - Display:             SH5461AS 4-digit 7-seg (common cathode, no DP)
+ *                          Segments A–G: GP8–GP14
+ *                          Digit selects: GP15, GP26–GP28
+ *   - Encoder:             KY-040 CLK/DT shared with GP0/GP1 (menu only)
+ *                          KY-040 SW on GP29 (dedicated — always readable)
+ *
+ * Pin sharing: GP0 and GP1 serve dual roles.
+ *   Menu phase  → INPUT_PULLDOWN  (ENC_CLK / ENC_DT)
+ *   Wind phase  → OUTPUT          (Motor 1 IN1 / IN2)
+ * enterMenuMode() / enterWindingMode() handle the transition.
+ * GP29 (ENC_SW) is always INPUT_PULLUP — emergency stop works in any phase.
  *
  * Menu flow (button advances each step):
  *   LAYERS → LENGTH → GAUGE → START  →  WINDING
@@ -34,12 +43,13 @@
 
 const int M1[4]  = {0, 1, 2, 3};             // Winding motor  (ULN2003 #1)
 const int M2[4]  = {4, 5, 6, 7};             // Traverse motor (ULN2003 #2)
-const int SEG[8] = {8, 9, 10, 11, 12, 13, 14, 15};  // Segments A–G, DP
-const int DIG[4] = {16, 17, 18, 19};         // Digit cathodes 0–3 (left→right)
+const int SEG[7] = {8, 9, 10, 11, 12, 13, 14};  // Segments A–G (no DP)
+const int DIG[4] = {15, 26, 27, 28};         // Digit cathodes 0–3 (left→right)
 
-#define ENC_CLK 20
-#define ENC_DT  21
-#define ENC_SW  22
+// GP0/GP1 are shared: ENC_CLK/DT during menu, Motor 1 IN1/IN2 during winding.
+#define ENC_CLK  0
+#define ENC_DT   1
+#define ENC_SW  29   // dedicated — always INPUT_PULLUP, works in any phase
 
 // ── Motor constants ──────────────────────────────────────────────────────────
 
@@ -155,6 +165,25 @@ void releaseMotors() {
   writeMotor(M2, 0);
 }
 
+// ── Phase transition helpers ──────────────────────────────────────────────────
+
+// Call when entering any menu state: reconfigure GP0/GP1 as encoder inputs.
+void enterMenuMode() {
+  writeMotor(M1, 0);  // de-energise M1 coils before releasing pins
+  detachInterrupt(digitalPinToInterrupt(ENC_CLK));
+  pinMode(ENC_CLK, INPUT_PULLDOWN);
+  pinMode(ENC_DT,  INPUT_PULLDOWN);
+  encoderDelta = 0;
+  attachInterrupt(digitalPinToInterrupt(ENC_CLK), onEncoderCLK, FALLING);
+}
+
+// Call when starting a winding run: reconfigure GP0/GP1 as motor outputs.
+void enterWindingMode() {
+  detachInterrupt(digitalPinToInterrupt(ENC_CLK));
+  pinMode(ENC_CLK, OUTPUT); digitalWrite(ENC_CLK, LOW);
+  pinMode(ENC_DT,  OUTPUT); digitalWrite(ENC_DT,  LOW);
+}
+
 // ── Display helpers ──────────────────────────────────────────────────────────
 
 // Call frequently from loop(); advances one digit per call (multiplexing).
@@ -162,7 +191,7 @@ void refreshDisplay() {
   static uint8_t digit = 0;
   for (int i = 0; i < 4; i++) digitalWrite(DIG[i], HIGH);
   uint8_t pat = displayBuf[digit];
-  for (int i = 0; i < 8; i++) digitalWrite(SEG[i], (pat >> i) & 1);
+  for (int i = 0; i < 7; i++) digitalWrite(SEG[i], (pat >> i) & 1);
   digitalWrite(DIG[digit], LOW);
   digit = (digit + 1) % 4;
 }
@@ -220,16 +249,9 @@ void updateDisplay() {
       displayBuf[3] = SEG_BLANK;
       break;
 
-    case WINDING: {
-      int pct = (computedTurns > 0)
-                ? constrain((int)((float)currentTurns * 100.0f / computedTurns), 0, 99)
-                : 0;
-      displayBuf[0] = SEG_BLANK;
-      displayBuf[1] = SEG_BLANK;
-      displayBuf[2] = DIGIT_PAT[pct / 10];
-      displayBuf[3] = DIGIT_PAT[pct % 10];
+    case WINDING:
+      showNumber(currentTurns);
       break;
-    }
   }
 }
 
@@ -277,6 +299,7 @@ void handleButton() {
       float wireDiam = GAUGES[gaugeIndex].diameter_mm;
       int turnsPerLayer = max(1, (int)((float)spoolLengthMM / wireDiam));
       computedTurns = targetLayers * turnsPerLayer;
+      enterWindingMode();
       state        = WINDING;
       currentTurns = 0;
       totalStepsM1 = 0;
@@ -286,8 +309,9 @@ void handleButton() {
     }
 
     case WINDING:
-      state = MENU_LAYERS;
       releaseMotors();
+      enterMenuMode();
+      state = MENU_LAYERS;
       break;
   }
 }
@@ -303,6 +327,7 @@ void handleWinding() {
     displayBuf[3] = SEG_E_LO;
     unsigned long t = millis();
     while (millis() - t < 2000) refreshDisplay();  // hold "done" for 2 s
+    enterMenuMode();
     state = MENU_LAYERS;
     return;
   }
@@ -335,15 +360,13 @@ void handleWinding() {
 void setup() {
   for (int i = 0; i < 4; i++) { pinMode(M1[i],  OUTPUT); digitalWrite(M1[i],  LOW);  }
   for (int i = 0; i < 4; i++) { pinMode(M2[i],  OUTPUT); digitalWrite(M2[i],  LOW);  }
-  for (int i = 0; i < 8; i++) { pinMode(SEG[i], OUTPUT); digitalWrite(SEG[i], LOW);  }
+  for (int i = 0; i < 7; i++) { pinMode(SEG[i], OUTPUT); digitalWrite(SEG[i], LOW);  }
   for (int i = 0; i < 4; i++) { pinMode(DIG[i], OUTPUT); digitalWrite(DIG[i], HIGH); }
 
-  pinMode(ENC_CLK, INPUT_PULLUP);
-  pinMode(ENC_DT,  INPUT_PULLUP);
-  pinMode(ENC_SW,  INPUT_PULLUP);
-  attachInterrupt(digitalPinToInterrupt(ENC_CLK), onEncoderCLK, FALLING);
+  pinMode(ENC_SW, INPUT_PULLUP);  // always readable — emergency stop in any phase
 
-  motorStartupTest();
+  motorStartupTest();   // GP0/GP1 are motor outputs during test
+  enterMenuMode();      // reconfigure GP0/GP1 for encoder use
   updateDisplay();
 }
 
