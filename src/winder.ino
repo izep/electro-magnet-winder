@@ -221,13 +221,7 @@ void updateDisplay() {
       break;
 
     case WINDING: {
-      int pct = (computedTurns > 0)
-                ? constrain((int)((float)currentTurns * 100.0f / computedTurns), 0, 99)
-                : 0;
-      displayBuf[0] = SEG_BLANK;
-      displayBuf[1] = SEG_BLANK;
-      displayBuf[2] = DIGIT_PAT[pct / 10];
-      displayBuf[3] = DIGIT_PAT[pct % 10];
+      showNumber(currentTurns);
       break;
     }
   }
