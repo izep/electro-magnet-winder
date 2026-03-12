@@ -66,7 +66,9 @@ const WireGauge GAUGES[] = {
   {28, 0.321f},
   {30, 0.255f},
   {32, 0.202f},
+  {34, 0.160f},
   {36, 0.127f},
+  {38, 0.101f},
   {40, 0.079f},
 };
 const int NUM_GAUGES = (int)(sizeof(GAUGES) / sizeof(GAUGES[0]));
@@ -230,13 +232,7 @@ void updateDisplay() {
       break;
 
     case WINDING: {
-      int pct = (computedTurns > 0)
-                ? constrain((int)((float)currentTurns * 100.0f / computedTurns), 0, 99)
-                : 0;
-      displayBuf[0] = SEG_BLANK;
-      displayBuf[1] = SEG_BLANK;
-      displayBuf[2] = DIGIT_PAT[pct / 10];
-      displayBuf[3] = DIGIT_PAT[pct % 10];
+      showNumber(currentTurns);
       break;
     }
   }
