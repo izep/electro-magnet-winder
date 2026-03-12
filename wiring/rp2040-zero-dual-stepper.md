@@ -189,21 +189,60 @@ Place a **150 Ω resistor** in series with each segment line (GP8–GP14). At
 3.3 V with a ~2 V LED forward voltage and 25% multiplex duty cycle this gives
 roughly 8–9 mA per segment — adequate brightness without overloading the GPIO.
 
-| RP2040-Zero | Resistor | SH5461AS |
-|-------------|----------|----------|
-| GP8 | 150 Ω | Segment A |
-| GP9 | 150 Ω | Segment B |
-| GP10 | 150 Ω | Segment C |
-| GP11 | 150 Ω | Segment D |
-| GP12 | 150 Ω | Segment E |
-| GP13 | 150 Ω | Segment F |
-| GP14 | 150 Ω | Segment G |
-| GP15 | — | Digit 1 common cathode |
-| GP26 | — | Digit 2 common cathode |
-| GP27 | — | Digit 3 common cathode |
-| GP28 | — | Digit 4 common cathode |
+### Physical Pinout
 
-DP pin on the SH5461AS is left unconnected.
+The SH5461AS has **12 pins** — 6 on the bottom edge and 6 on the top edge.
+
+**Finding pin 1:** Hold the display face-toward-you with the decimal points
+along the bottom edge. The small circular indent (or dot) moulded into the
+plastic body marks the **pin 1 end**. Pin 1 is the bottom-left pin.
+
+```
+        FRONT VIEW  (decimal points along bottom, pin-1 dot at bottom-left)
+
+        pin 12  11  10   9   8   7
+              │   │   │   │   │   │
+         ┌────┴───┴───┴───┴───┴───┴────┐
+         │                             │
+         │   ┌──┐  ┌──┐  ┌──┐  ┌──┐   │
+         │   │  │  │  │  │  │  │  │   │
+         │   └──┘  └──┘  └──┘  └──┘   │
+         │    D1    D2    D3    D4     │
+         │    .     .     .     .     │  ← decimal points (not wired)
+         └────┬───┬───┬───┬───┬───┬───┘
+              │   │   │   │   │   │
+         ● pin 1   2   3   4   5   6
+         (dot)
+```
+
+Pin functions:
+
+| Pin | Function       | Pin | Function            |
+|-----|----------------|-----|---------------------|
+|  1  | Segment E      |  7  | Digit 3 cathode (D3) |
+|  2  | Segment D      |  8  | Digit 2 cathode (D2) |
+|  3  | Segment DP     |  9  | Segment F           |
+|  4  | Segment C      | 10  | Digit 1 cathode (D1, leftmost) |
+|  5  | Segment G      | 11  | Segment A           |
+|  6  | Digit 4 cathode (D4, rightmost) | 12 | Segment B |
+
+### Wiring to RP2040-Zero
+
+| RP2040-Zero | Resistor | SH5461AS pin | Signal |
+|-------------|----------|--------------|--------|
+| GP8  | 150 Ω | Pin 11 | Segment A |
+| GP9  | 150 Ω | Pin 12 | Segment B |
+| GP10 | 150 Ω | Pin 4  | Segment C |
+| GP11 | 150 Ω | Pin 2  | Segment D |
+| GP12 | 150 Ω | Pin 1  | Segment E |
+| GP13 | 150 Ω | Pin 9  | Segment F |
+| GP14 | 150 Ω | Pin 5  | Segment G |
+| GP15 | —     | Pin 10 | Digit 1 cathode (leftmost) |
+| GP26 | —     | Pin 8  | Digit 2 cathode |
+| GP27 | —     | Pin 7  | Digit 3 cathode |
+| GP28 | —     | Pin 6  | Digit 4 cathode (rightmost) |
+
+Pin 3 (Segment DP) is left unconnected.
 
 ---
 
