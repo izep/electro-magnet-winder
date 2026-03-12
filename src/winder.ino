@@ -280,6 +280,7 @@ void handleButton() {
         Settings s = {MAGIC_VAL, targetLayers, spoolLengthMM, gaugeIndex};
         EEPROM.put(0, s);
         EEPROM.commit();
+        Serial.println("Settings saved to EEPROM");
       }
       state = MENU_START;  
       break;
