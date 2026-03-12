@@ -191,6 +191,22 @@ void motorStartupTest() {
 // ── Menu display update ──────────────────────────────────────────────────────
 
 void updateDisplay() {
+  static State lastState = (State)-1;
+  static int lastVal = -1;
+  int currentVal = -1;
+
+  switch (state) {
+    case MENU_LAYERS: currentVal = targetLayers; break;
+    case MENU_LENGTH: currentVal = spoolLengthMM; break;
+    case MENU_GAUGE:  currentVal = gaugeIndex; break;
+    case MENU_START:  currentVal = 0; break;
+    case WINDING:     currentVal = currentTurns; break;
+  }
+
+  if (state == lastState && currentVal == lastVal) return;
+  lastState = state;
+  lastVal = currentVal;
+
   switch (state) {
 
     case MENU_LAYERS:
@@ -250,6 +266,7 @@ void handleEncoder() {
     default:
       break;
   }
+  updateDisplay();
 }
 
 // ── Button handler ───────────────────────────────────────────────────────────
@@ -298,30 +315,40 @@ void handleWinding() {
     unsigned long t = millis();
     while (millis() - t < 2000) refreshDisplay();  // hold "done" for 2 s
     state = MENU_LAYERS;
+    updateDisplay(); // Force refresh for new state
     return;
   }
 
-  if (millis() - lastStepTime < (unsigned long)STEP_DELAY_MS) return;
-  lastStepTime = millis();
+  unsigned long now = millis();
+  if (now - lastStepTime < (unsigned long)STEP_DELAY_MS) return;
+  lastStepTime = now;
 
   stepMotor1(1);
 
   // Synchronized traverse: ping-pong guide across spool length
   float wireDiam   = GAUGES[gaugeIndex].diameter_mm;
   float passLength = (float)spoolLengthMM;
-  float totalRevs  = (float)totalStepsM1 / STEPS_PER_REV;
-  float targetMM   = totalRevs * wireDiam;
+  
+  // Calculate continuous linear position based on total winding steps
+  float totalMM    = ((float)totalStepsM1 / STEPS_PER_REV) * wireDiam;
 
-  int   passNum    = (int)(targetMM / passLength);
-  float posInPass  = fmod(targetMM, passLength);
-  float guideMM    = (passNum % 2 == 0) ? posInPass : passLength - posInPass;
+  int   passNum    = (int)(totalMM / passLength);
+  float posInPass  = fmod(totalMM, passLength);
+  
+  // Ping-pong: even passes go forward, odd passes go backward
+  float guideMM    = (passNum % 2 == 0) ? posInPass : (passLength - posInPass);
 
   long targetStepsM2 = (long)(guideMM * GUIDE_STEPS_PER_MM);
 
+  // Move guide motor to match calculated target position
   if      (totalStepsM2 < targetStepsM2) stepMotor2( 1);
   else if (totalStepsM2 > targetStepsM2) stepMotor2(-1);
 
-  currentTurns = (int)(totalStepsM1 / STEPS_PER_REV);
+  int newTurns = (int)(totalStepsM1 / STEPS_PER_REV);
+  if (newTurns != currentTurns) {
+    currentTurns = newTurns;
+    updateDisplay();
+  }
 }
 
 // ── Arduino entry points ─────────────────────────────────────────────────────
@@ -350,6 +377,4 @@ void loop() {
   } else {
     handleEncoder();
   }
-
-  updateDisplay();
 }
