@@ -38,7 +38,7 @@ The **encoder button** advances through each setting. Rotate the encoder to chan
 |---------|-------|---------------|
 | `0001`  | Layers | Rotate to set number of winding layers (±1, range 1–99) |
 | `L 20`  | Spool length | Rotate to set magnet/coil length in mm (±1 mm, range 1–999) |
-| `A 28`  | Wire gauge | Rotate to cycle AWG presets: 22, 26, 28, 30, 32, 36, 40 |
+| `A 28`  | Wire gauge | Rotate to cycle AWG presets: 22, 24, 26, 28, 30, 32, 34, 36, 38, 40, 42, 44 |
 | `go`    | Ready | Press button to start winding |
 | `0000`  | **Winding** | Display counts turns up to target — press button to stop early |
 

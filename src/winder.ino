@@ -62,6 +62,7 @@ struct WireGauge { uint8_t awg; float diameter_mm; };
 
 const WireGauge GAUGES[] = {
   {22, 0.644f},
+  {24, 0.511f},
   {26, 0.405f},
   {28, 0.321f},
   {30, 0.255f},
@@ -70,6 +71,8 @@ const WireGauge GAUGES[] = {
   {36, 0.127f},
   {38, 0.101f},
   {40, 0.079f},
+  {42, 0.063f},
+  {44, 0.050f},
 };
 const int NUM_GAUGES = (int)(sizeof(GAUGES) / sizeof(GAUGES[0]));
 
@@ -288,7 +291,10 @@ void handleButton() {
     case MENU_START: {
       // Compute total turns from layers × turns-per-layer
       float wireDiam = GAUGES[gaugeIndex].diameter_mm;
-      int turnsPerLayer = max(1, (int)((float)spoolLengthMM / wireDiam));
+      // In physical winding, a layer must be a whole number of turns
+      int turnsPerLayer = (int)((float)spoolLengthMM / wireDiam);
+      if (turnsPerLayer < 1) turnsPerLayer = 1;
+      
       computedTurns = targetLayers * turnsPerLayer;
       state        = WINDING;
       currentTurns = 0;
