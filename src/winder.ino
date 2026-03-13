@@ -53,6 +53,7 @@ struct WireGauge { uint8_t awg; float diameter_mm; };
 
 const WireGauge GAUGES[] = {
   {22, 0.644f},
+  {24, 0.511f},
   {26, 0.405f},
   {28, 0.321f},
   {30, 0.255f},
