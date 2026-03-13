@@ -84,6 +84,35 @@ const uint8_t DIGIT_PAT[10] = {
   0b01101111, // 9
 };
 
+// ── Persistence ─────────────────────────────────────────────────────────────
+
+#include <EEPROM.h>
+
+struct Settings {
+  uint32_t magic; // To check if EEPROM has been initialized
+  int targetLayers;
+  int spoolLengthMM;
+  int gaugeIndex;
+};
+
+const uint32_t EEPROM_MAGIC = 0x534B4950; // "SKIP" in hex
+
+void saveSettings() {
+  Settings s = { EEPROM_MAGIC, targetLayers, spoolLengthMM, gaugeIndex };
+  EEPROM.put(0, s);
+  EEPROM.commit();
+}
+
+void loadSettings() {
+  Settings s;
+  EEPROM.get(0, s);
+  if (s.magic == EEPROM_MAGIC) {
+    targetLayers = constrain(s.targetLayers, 1, 99);
+    spoolLengthMM = constrain(s.spoolLengthMM, 1, 999);
+    gaugeIndex = constrain(s.gaugeIndex, 0, NUM_GAUGES - 1);
+  }
+}
+
 // Special characters
 const uint8_t SEG_BLANK = 0x00;
 const uint8_t SEG_DASH  = 0x40;  // g segment only  (–)
@@ -267,7 +296,10 @@ void handleButton() {
   switch (state) {
     case MENU_LAYERS:  state = MENU_LENGTH; break;
     case MENU_LENGTH:  state = MENU_GAUGE;  break;
-    case MENU_GAUGE:   state = MENU_START;  break;
+    case MENU_GAUGE:   
+      state = MENU_START;  
+      saveSettings(); // Save before starting or at the end of setup
+      break;
 
     case MENU_START: {
       // Compute total turns from layers × turns-per-layer
@@ -346,6 +378,9 @@ void handleWinding() {
 // ── Arduino entry points ─────────────────────────────────────────────────────
 
 void setup() {
+  EEPROM.begin(512);
+  loadSettings();
+
   for (int i = 0; i < 4; i++) { pinMode(M1[i],  OUTPUT); digitalWrite(M1[i],  LOW);  }
   for (int i = 0; i < 4; i++) { pinMode(M2[i],  OUTPUT); digitalWrite(M2[i],  LOW);  }
   for (int i = 0; i < 8; i++) { pinMode(SEG[i], OUTPUT); digitalWrite(SEG[i], LOW);  }
