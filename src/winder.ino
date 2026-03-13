@@ -304,25 +304,41 @@ void handleWinding() {
     return;
   }
 
+  // Handle emergency stop check within the step delay
+  if (digitalRead(ENC_SW) == LOW) {
+    state = MENU_LAYERS;
+    releaseMotors();
+    delay(200); // Debounce
+    return;
+  }
+
   if (millis() - lastStepTime < (unsigned long)STEP_DELAY_MS) return;
   lastStepTime = millis();
 
   stepMotor1(1);
 
-  // Synchronized traverse: ping-pong guide across spool length
-  float wireDiam   = GAUGES[gaugeIndex].diameter_mm;
-  float passLength = (float)spoolLengthMM;
-  float totalRevs  = (float)totalStepsM1 / STEPS_PER_REV;
-  float targetMM   = totalRevs * wireDiam;
-
-  int   passNum    = (int)(targetMM / passLength);
-  float posInPass  = fmod(targetMM, passLength);
-  float guideMM    = (passNum % 2 == 0) ? posInPass : passLength - posInPass;
-
+  // Synchronized traverse: calculates target guide position based on current rotation
+  // Current rotation in mm of linear wire lay (totalRevs * wireDiameter)
+  float wireDiam = GAUGES[gaugeIndex].diameter_mm;
+  float totalLinearMM = ((float)totalStepsM1 / STEPS_PER_REV) * wireDiam;
+  
+  // Which pass (layer) are we on?
+  int passNum = (int)(totalLinearMM / spoolLengthMM);
+  
+  // Distance into the current pass
+  float posInPass = fmod(totalLinearMM, (float)spoolLengthMM);
+  
+  // Actual guide target position (ping-pong)
+  float guideMM = (passNum % 2 == 0) ? posInPass : (float)spoolLengthMM - posInPass;
+  
   long targetStepsM2 = (long)(guideMM * GUIDE_STEPS_PER_MM);
 
-  if      (totalStepsM2 < targetStepsM2) stepMotor2( 1);
-  else if (totalStepsM2 > targetStepsM2) stepMotor2(-1);
+  // Move guide motor toward target
+  if (totalStepsM2 < targetStepsM2) {
+    stepMotor2(1);
+  } else if (totalStepsM2 > targetStepsM2) {
+    stepMotor2(-1);
+  }
 
   currentTurns = (int)(totalStepsM1 / STEPS_PER_REV);
 }
