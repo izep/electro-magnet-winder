@@ -184,10 +184,10 @@ void showNumber(int n) {
 
 void motorStartupTest() {
   for (int i = 0; i < 4; i++) displayBuf[i] = SEG_DASH;
-  for (int i = 0; i < 4; i++) { stepMotor1( 1); refreshDisplay(); delay(60); }
-  for (int i = 0; i < 4; i++) { stepMotor1(-1); refreshDisplay(); delay(60); }
-  for (int i = 0; i < 4; i++) { stepMotor2( 1); refreshDisplay(); delay(60); }
-  for (int i = 0; i < 4; i++) { stepMotor2(-1); refreshDisplay(); delay(60); }
+  for (int i = 0; i < 4; i++) { stepMotor1( 1); refreshDisplay(); delay(40); }
+  for (int i = 0; i < 4; i++) { stepMotor1(-1); refreshDisplay(); delay(40); }
+  for (int i = 0; i < 4; i++) { stepMotor2( 1); refreshDisplay(); delay(40); }
+  for (int i = 0; i < 4; i++) { stepMotor2(-1); refreshDisplay(); delay(40); }
   releaseMotors();
 }
 
