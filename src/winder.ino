@@ -45,15 +45,17 @@ struct Settings {
   int targetLayers;
   int spoolLengthMM;
   int gaugeIndex;
+  int motorSpeed;  // Delay in ms (lower is faster)
 };
 const uint32_t EEPROM_MAGIC = 0x534B4950;
 
 int targetLayers  = 1;
 int spoolLengthMM = 20;
 int gaugeIndex    = 2;
+int motorSpeed    = 2; // Default 2ms
 
 void saveSettings() {
-  Settings s = { EEPROM_MAGIC, targetLayers, spoolLengthMM, gaugeIndex };
+  Settings s = { EEPROM_MAGIC, targetLayers, spoolLengthMM, gaugeIndex, motorSpeed };
   EEPROM.put(0, s);
   EEPROM.commit();
 }
@@ -65,6 +67,7 @@ void loadSettings() {
     targetLayers = constrain(s.targetLayers, 1, 99);
     spoolLengthMM = constrain(s.spoolLengthMM, 1, 999);
     gaugeIndex = constrain(s.gaugeIndex, 0, NUM_GAUGES - 1);
+    motorSpeed = constrain(s.motorSpeed, 1, 50);
   }
 }
 
@@ -73,6 +76,8 @@ const uint8_t SEG_BLANK = 0x00;
 const uint8_t SEG_DASH  = 0x40;
 const uint8_t SEG_L     = 0x38;
 const uint8_t SEG_A_UP  = 0x77;
+const uint8_t SEG_S_UP  = 0x6D;
+const uint8_t SEG_P_UP  = 0x73;
 const uint8_t SEG_G_LO  = 0x6F;
 const uint8_t SEG_O_LO  = 0x5C;
 const uint8_t SEG_D_LO  = 0x5E;
@@ -80,7 +85,7 @@ const uint8_t SEG_N_LO  = 0x54;
 const uint8_t SEG_E_LO  = 0x79;
 
 // ── State ────────────────────────────────────────────────────────────────────
-enum State { MENU_LAYERS, MENU_LENGTH, MENU_GAUGE, MENU_START, WINDING };
+enum State { MENU_LAYERS, MENU_LENGTH, MENU_GAUGE, MENU_SPEED, MENU_START, WINDING };
 State state = MENU_LAYERS;
 
 uint8_t displayBuf[4] = {SEG_BLANK, SEG_BLANK, SEG_BLANK, SEG_BLANK};
@@ -159,6 +164,11 @@ void updateDisplay() {
       displayBuf[2] = DIGIT_PAT[GAUGES[gaugeIndex].awg / 10];
       displayBuf[3] = DIGIT_PAT[GAUGES[gaugeIndex].awg % 10];
       break;
+    case MENU_SPEED:
+      displayBuf[0] = SEG_S_UP; displayBuf[1] = SEG_P_UP;
+      displayBuf[2] = (motorSpeed >= 10) ? DIGIT_PAT[motorSpeed / 10] : SEG_BLANK;
+      displayBuf[3] = DIGIT_PAT[motorSpeed % 10];
+      break;
     case MENU_START:
       displayBuf[0] = SEG_G_LO; displayBuf[1] = SEG_O_LO;
       displayBuf[2] = SEG_BLANK; displayBuf[3] = SEG_BLANK;
@@ -174,6 +184,7 @@ void handleEncoder() {
     case MENU_LAYERS: targetLayers = constrain(targetLayers + delta, 1, 99); break;
     case MENU_LENGTH: spoolLengthMM = constrain(spoolLengthMM + delta, 1, 999); break;
     case MENU_GAUGE: gaugeIndex = (gaugeIndex + delta + NUM_GAUGES) % NUM_GAUGES; break;
+    case MENU_SPEED: motorSpeed = constrain(motorSpeed + delta, 1, 50); break;
     default: break;
   }
 }
@@ -184,7 +195,8 @@ void handleButton() {
   switch (state) {
     case MENU_LAYERS: state = MENU_LENGTH; break;
     case MENU_LENGTH: state = MENU_GAUGE; break;
-    case MENU_GAUGE: state = MENU_START; saveSettings(); break;
+    case MENU_GAUGE: state = MENU_SPEED; break;
+    case MENU_SPEED: state = MENU_START; saveSettings(); break;
     case MENU_START: {
       float wireDiam = GAUGES[gaugeIndex].diameter_mm;
       int turnsPerLayer = max(1, (int)((float)spoolLengthMM / wireDiam));
@@ -208,7 +220,7 @@ void handleWinding() {
   if (digitalRead(ENC_SW) == LOW) { state = MENU_LAYERS; releaseMotors(); delay(500); return; }
   
   unsigned long now = millis();
-  if (now - lastStepTime < (unsigned long)STEP_DELAY_MS) return;
+  if (now - lastStepTime < (unsigned long)motorSpeed) return;
   lastStepTime = now;
   
   stepMotor1(1);
