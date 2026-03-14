@@ -39,4 +39,5 @@ A DIY machine for winding precision electro-magnets and coils, powered by an RP2
 - [x] Wire gauge presets (22–40 AWG, selectable at runtime)
 - [x] Startup motor test sequence
 - [x] Persistence of settings (EEPROM)
+- [x] Handle motor release and emergency stop
 - [ ] 3D print and assemble enclosure
