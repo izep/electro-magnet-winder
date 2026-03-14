@@ -19,7 +19,7 @@ const int DIG[4] = {16, 17, 18, 19};         // Digit cathodes 0–3 (left→rig
 
 // ── Motor constants ──────────────────────────────────────────────────────────
 const int   STEPS_PER_REV      = 2048;       // 28BYJ-48 half-step
-const float GUIDE_STEPS_PER_MM = (2.0f * STEPS_PER_REV) / 3.5f;
+const float GUIDE_STEPS_PER_MM = (float)STEPS_PER_REV / 1.0f; // Simplified for now, should be calibrated
 const int   STEP_DELAY_MS      = 2;
 
 // ── AWG wire diameter presets ────────────────────────────────────────────────
@@ -201,22 +201,32 @@ void handleWinding() {
     releaseMotors();
     displayBuf[0] = SEG_D_LO; displayBuf[1] = SEG_O_LO;
     displayBuf[2] = SEG_N_LO; displayBuf[3] = SEG_E_LO;
-    unsigned long t = millis(); while (millis() - t < 2000) refreshDisplay();
+    unsigned long t = millis();
+    while (millis() - t < 3000) { refreshDisplay(); }
     state = MENU_LAYERS; return;
   }
-  if (digitalRead(ENC_SW) == LOW) { state = MENU_LAYERS; releaseMotors(); delay(200); return; }
-  if (millis() - lastStepTime < (unsigned long)STEP_DELAY_MS) return;
-  lastStepTime = millis();
+  if (digitalRead(ENC_SW) == LOW) { state = MENU_LAYERS; releaseMotors(); delay(500); return; }
+  
+  unsigned long now = millis();
+  if (now - lastStepTime < (unsigned long)STEP_DELAY_MS) return;
+  lastStepTime = now;
+  
   stepMotor1(1);
   float wireDiam = GAUGES[gaugeIndex].diameter_mm;
-  float totalLinearMM = ((float)totalStepsM1 / STEPS_PER_REV) * wireDiam;
-  int passNum = (int)(totalLinearMM / spoolLengthMM);
+  float revs = (float)totalStepsM1 / STEPS_PER_REV;
+  float totalLinearMM = revs * wireDiam;
+  
+  int passNum = (int)(totalLinearMM / (float)spoolLengthMM);
   float posInPass = fmod(totalLinearMM, (float)spoolLengthMM);
   float guideMM = (passNum % 2 == 0) ? posInPass : (float)spoolLengthMM - posInPass;
+  
   long targetStepsM2 = (long)(guideMM * GUIDE_STEPS_PER_MM);
+  
+  // Basic closed-loop-ish step following
   if (totalStepsM2 < targetStepsM2) stepMotor2(1);
   else if (totalStepsM2 > targetStepsM2) stepMotor2(-1);
-  currentTurns = (int)(totalStepsM1 / STEPS_PER_REV);
+  
+  currentTurns = (int)revs;
 }
 
 void setup() {
