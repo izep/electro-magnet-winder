@@ -19,7 +19,7 @@ const int DIG[4] = {16, 17, 18, 19};         // Digit cathodes 0–3 (left→rig
 
 // ── Motor constants ──────────────────────────────────────────────────────────
 const int   STEPS_PER_REV      = 2048;       // 28BYJ-48 half-step
-const float GUIDE_STEPS_PER_MM = (float)STEPS_PER_REV / 1.0f; // Simplified for now, should be calibrated
+const float GUIDE_STEPS_PER_MM = (2.0f * (float)STEPS_PER_REV) / 3.5f; // 2 revs = 3.5mm
 const int   STEP_DELAY_MS      = 2;
 
 // ── AWG wire diameter presets ────────────────────────────────────────────────
