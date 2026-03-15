@@ -173,7 +173,15 @@ void updateDisplay() {
       displayBuf[0] = SEG_G_LO; displayBuf[1] = SEG_O_LO;
       displayBuf[2] = SEG_BLANK; displayBuf[3] = SEG_BLANK;
       break;
-    case WINDING: showNumber(currentTurns); break;
+    case WINDING: {
+      if (currentTurns < 0) {
+        displayBuf[0] = SEG_D_LO; displayBuf[1] = SEG_O_LO;
+        displayBuf[2] = SEG_N_LO; displayBuf[3] = SEG_E_LO;
+      } else {
+        showNumber(currentTurns);
+      }
+      break;
+    }
   }
 }
 
@@ -211,10 +219,9 @@ void handleButton() {
 void handleWinding() {
   if (currentTurns >= computedTurns) {
     releaseMotors();
-    displayBuf[0] = SEG_D_LO; displayBuf[1] = SEG_O_LO;
-    displayBuf[2] = SEG_N_LO; displayBuf[3] = SEG_E_LO;
+    currentTurns = -1; // Flag for display
     unsigned long t = millis();
-    while (millis() - t < 3000) { refreshDisplay(); }
+    while (millis() - t < 3000) { refreshDisplay(); updateDisplay(); }
     state = MENU_LAYERS; return;
   }
   if (digitalRead(ENC_SW) == LOW) { state = MENU_LAYERS; releaseMotors(); delay(500); return; }
