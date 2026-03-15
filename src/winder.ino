@@ -39,6 +39,8 @@ const uint8_t DIGIT_PAT[10] = {
   0b01101101, 0b01111101, 0b00000111, 0b01111111, 0b01101111,
 };
 
+const uint8_t SEG_Y = 0b01101110; // 4-digit common cathode: b, c, d, f, g (Y)
+
 // ── Settings & Persistence ───────────────────────────────────────────────────
 struct Settings {
   uint32_t magic;
@@ -83,6 +85,7 @@ const uint8_t SEG_O_LO  = 0x5C;
 const uint8_t SEG_D_LO  = 0x5E;
 const uint8_t SEG_N_LO  = 0x54;
 const uint8_t SEG_E_LO  = 0x79;
+const uint8_t SEG_S_LO  = 0x6D;
 
 // ── State ────────────────────────────────────────────────────────────────────
 enum State { MENU_LAYERS, MENU_LENGTH, MENU_GAUGE, MENU_SPEED, MENU_START, WINDING };
@@ -177,6 +180,11 @@ void updateDisplay() {
       if (currentTurns < 0) {
         displayBuf[0] = SEG_D_LO; displayBuf[1] = SEG_O_LO;
         displayBuf[2] = SEG_N_LO; displayBuf[3] = SEG_E_LO;
+      } else if (currentTurns > 9999) {
+        displayBuf[0] = SEG_Y;
+        displayBuf[1] = SEG_E_LO;
+        displayBuf[2] = SEG_S_LO;
+        displayBuf[3] = SEG_BLANK;
       } else {
         showNumber(currentTurns);
       }
