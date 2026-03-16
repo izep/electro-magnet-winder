@@ -31,7 +31,7 @@ const WireGauge GAUGES[] = {
 const int NUM_GAUGES = (int)(sizeof(GAUGES) / sizeof(GAUGES[0]));
 
 // ── Half-step sequence ───────────────────────────────────────────────────────
-const uint8_t HALF_STEP[8] = {0x1, 0x3, 0x2, 0x6, 0x4, 0xC, 0x8, 0x9};
+const uint8_t HALF_STEP[8] = {0x8, 0xC, 0x4, 0x6, 0x2, 0x3, 0x1, 0x9};
 
 // ── 7-segment patterns ───────────────────────────────────────────────────────
 const uint8_t DIGIT_PAT[10] = {
