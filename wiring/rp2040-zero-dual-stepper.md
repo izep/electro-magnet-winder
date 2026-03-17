@@ -136,17 +136,17 @@ graph LR
 | GP5 | Motor 2 IN2 | ULN2003 #2 IN2 | Both |
 | GP6 | Motor 2 IN3 | ULN2003 #2 IN3 | Both |
 | GP7 | Motor 2 IN4 | ULN2003 #2 IN4 | Both |
-| GP8 | Segment A | SH5461AS pin A (via 150 Ω) | Both |
-| GP9 | Segment B | SH5461AS pin B (via 150 Ω) | Both |
-| GP10 | Segment C | SH5461AS pin C (via 150 Ω) | Both |
-| GP11 | Segment D | SH5461AS pin D (via 150 Ω) | Both |
-| GP12 | Segment E | SH5461AS pin E (via 150 Ω) | Both |
-| GP13 | Segment F | SH5461AS pin F (via 150 Ω) | Both |
-| GP14 | Segment G | SH5461AS pin G (via 150 Ω) | Both |
-| GP15 | Digit 0 cathode | SH5461AS digit 1 common | Both |
-| GP26 | Digit 1 cathode | SH5461AS digit 2 common | Both |
-| GP27 | Digit 2 cathode | SH5461AS digit 3 common | Both |
-| GP28 | Digit 3 cathode | SH5461AS digit 4 common | Both |
+| GP8 | Segment A | SH5461AS pin 11 (via 150 Ω) | Both |
+| GP9 | Digit 1 cathode | SH5461AS pin 12 (leftmost) | Both |
+| GP10 | Segment C | SH5461AS pin 4 (via 150 Ω) | Both |
+| GP11 | Segment D | SH5461AS pin 2 (via 150 Ω) | Both |
+| GP12 | Segment E | SH5461AS pin 1 (via 150 Ω) | Both |
+| GP13 | Digit 2 cathode | SH5461AS pin 9 | Both |
+| GP14 | Segment G | SH5461AS pin 5 (via 150 Ω) | Both |
+| GP15 | Segment F | SH5461AS pin 10 (via 150 Ω) | Both |
+| GP26 | Digit 3 cathode | SH5461AS pin 8 | Both |
+| GP27 | Segment B | SH5461AS pin 7 (via 150 Ω) | Both |
+| GP28 | Digit 4 cathode | SH5461AS pin 6 (rightmost) | Both |
 | GP29 | Encoder SW | KY-040 SW (emergency stop) | Both |
 
 DP segment is not connected. All 20 header-accessible GPIO are used.
@@ -231,15 +231,15 @@ Pin functions:
 | RP2040-Zero | Resistor | SH5461AS pin | Signal |
 |-------------|----------|--------------|--------|
 | GP8  | 150 Ω | Pin 11 | Segment A |
-| GP9  | 150 Ω | Pin 12 | Segment B |
+| GP27 | 150 Ω | Pin 7  | Segment B |
 | GP10 | 150 Ω | Pin 4  | Segment C |
 | GP11 | 150 Ω | Pin 2  | Segment D |
 | GP12 | 150 Ω | Pin 1  | Segment E |
-| GP13 | 150 Ω | Pin 9  | Segment F |
+| GP15 | 150 Ω | Pin 10 | Segment F |
 | GP14 | 150 Ω | Pin 5  | Segment G |
-| GP15 | —     | Pin 10 | Digit 1 cathode (leftmost) |
-| GP26 | —     | Pin 8  | Digit 2 cathode |
-| GP27 | —     | Pin 7  | Digit 3 cathode |
+| GP9  | —     | Pin 12 | Digit 1 cathode (leftmost) |
+| GP13 | —     | Pin 9  | Digit 2 cathode |
+| GP26 | —     | Pin 8  | Digit 3 cathode |
 | GP28 | —     | Pin 6  | Digit 4 cathode (rightmost) |
 
 Pin 3 (Segment DP) is left unconnected.
