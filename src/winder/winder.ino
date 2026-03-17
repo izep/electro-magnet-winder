@@ -6,6 +6,10 @@
  */
 
 #include <Arduino.h>
+#include <EEPROM.h>
+#include "EEPROM_Settings.h"
+
+SettingsManager settingsManager;
 
 // ── Pin assignments ──────────────────────────────────────────────────────────
 
@@ -188,11 +192,12 @@ void updateDisplay() {
 void handleEncoder() {
   noInterrupts(); int delta = encoderDelta; encoderDelta = 0; interrupts();
   if (delta == 0) return;
+  bool changed = false;
   switch (state) {
-    case MENU_LAYERS: targetLayers = constrain(targetLayers + delta, 1, 99); break;
-    case MENU_LENGTH: spoolLengthMM = constrain(spoolLengthMM + delta, 1, 999); break;
-    case MENU_GAUGE:  gaugeIndex = (gaugeIndex + delta + NUM_GAUGES) % NUM_GAUGES; break;
-    case MENU_DIR:    if (delta != 0) guideDir *= -1; break;
+    case MENU_LAYERS: targetLayers = constrain(targetLayers + delta, 1, 99); settingsManager.current.targetLayers = targetLayers; changed = true; break;
+    case MENU_LENGTH: spoolLengthMM = constrain(spoolLengthMM + delta, 1, 999); settingsManager.current.spoolLengthMM = spoolLengthMM; changed = true; break;
+    case MENU_GAUGE:  gaugeIndex = (gaugeIndex + delta + NUM_GAUGES) % NUM_GAUGES; settingsManager.current.gaugeIndex = gaugeIndex; changed = true; break;
+    case MENU_DIR:    if (delta != 0) { guideDir *= -1; settingsManager.current.guideDir = guideDir; changed = true; } break;
     case MENU_HOME: {
       // 1 Encoder rotation (~20 clicks) = 1 Motor rotation (4096 steps)
       int steps = delta * 205; 
@@ -202,6 +207,7 @@ void handleEncoder() {
     }
     default: break;
   }
+  if (changed) settingsManager.save();
 }
 
 void handleButton() {
@@ -258,6 +264,11 @@ void handleWinding() {
 }
 
 void setup() {
+  settingsManager.begin();
+  targetLayers = settingsManager.current.targetLayers;
+  spoolLengthMM = settingsManager.current.spoolLengthMM;
+  gaugeIndex = settingsManager.current.gaugeIndex;
+  guideDir = settingsManager.current.guideDir;
   for (int i = 0; i < 4; i++) { pinMode(M1[i], OUTPUT); digitalWrite(M1[i], LOW); }
   for (int i = 0; i < 4; i++) { pinMode(M2[i], OUTPUT); digitalWrite(M2[i], LOW); }
   for (int i = 0; i < 7; i++) { pinMode(SEG[i], OUTPUT); digitalWrite(SEG[i], LOW); }
